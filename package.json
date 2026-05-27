@@ -1,0 +1,22 @@
+{
+  "name": "endura",
+  "private": true,
+  "packageManager": "pnpm@10.11.0",
+  "engines": {
+    "node": ">=20.19.0",
+    "pnpm": ">=10.11.0"
+  },
+  "scripts": {
+    "dev:mobile": "pnpm --filter @endura/mobile start",
+    "android": "pnpm --filter @endura/mobile android",
+    "ios": "pnpm --filter @endura/mobile ios",
+    "web": "pnpm --filter @endura/mobile web",
+    "typecheck": "pnpm --filter @endura/mobile typecheck",
+    "lint": "pnpm --filter @endura/mobile lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3"
+  }
+}
