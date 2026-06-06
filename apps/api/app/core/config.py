@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/endura"
     cors_origins: str = "http://localhost:8081,http://localhost:19006"
     openai_api_key: str | None = None
+    strava_client_id: str
+    strava_client_secret: str
+    strava_redirect_uri: str
 
     model_config = SettingsConfigDict(
         env_file=".env",
