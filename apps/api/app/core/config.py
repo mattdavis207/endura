@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     strava_client_id: str
     strava_client_secret: str
     strava_redirect_uri: str
+    supabase_url: str
+    supabase_key: str
 
     model_config = SettingsConfigDict(
         env_file=".env",

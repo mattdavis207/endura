@@ -11,6 +11,10 @@ export default function RootLayout() {
     <GluestackUIProvider mode="light">
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="welcome" />
+        <Stack.Screen name="login" />
+        <Stack.Screen name="create-account" />
+        <Stack.Screen name="onboarding" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="strava-connected" />
       </Stack>

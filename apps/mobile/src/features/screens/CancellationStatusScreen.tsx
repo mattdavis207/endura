@@ -7,6 +7,13 @@ import { Heading } from "@/components/ui/heading";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 
+
+/* 
+    Test Page
+    xcrun simctl openurl booted \
+"exp://127.0.0.1:8081/--/strava-connected?status=cancelled"
+*/
+
 type CancellationStatusScreenProps = {
   isRetrying?: boolean;
   onReturn?: () => void;

@@ -8,6 +8,14 @@ import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { startStravaAuthorization } from "@/lib/strava_client/strava";
 
+
+/* 
+    Test Page
+    xcrun simctl openurl booted \
+"exp://127.0.0.1:8081/--/strava-connected?status=missing_permissions"
+*/
+
+
 type MissingPermissionsScreenProps = {
   isRetrying?: boolean;
   onCancel?: () => void;

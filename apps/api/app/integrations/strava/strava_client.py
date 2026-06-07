@@ -1,11 +1,14 @@
 from urllib.parse import urlencode
-
 from app.core.config import get_settings
+
+import httpx
 
 settings = get_settings()
 
 STRAVA_APP_AUTHORIZATION_URL = "strava://oauth/mobile/authorize"
 STRAVA_WEB_AUTHORIZATION_URL = "https://www.strava.com/oauth/mobile/authorize"
+STRAVA_WEB_OAUTH_TOKEN_URL = "https://www.strava.com/oauth/token"
+
 
 
 class StravaClient:
@@ -42,3 +45,28 @@ class StravaClient:
             approval_prompt=approval_prompt,
             authorization_url=STRAVA_APP_AUTHORIZATION_URL,
         )
+    
+    async def exchange_authorization_code(self, authorization_code: str):
+
+        payload = {
+            "client_id" : self.client_id,
+            "client_secret" : self.client_secret,
+            "code" : authorization_code,
+            "grant_type" : "authorization_code",
+        }
+        
+        response = httpx.post(STRAVA_WEB_OAUTH_TOKEN_URL, json=payload)
+
+        return response.json()
+    
+    # async def refresh_access_token(self, refresh_token):
+    #     payload = {
+    #         "client_id" : self.client_id,
+    #         "client_secret" : self.client_secret,
+    #         "grant_type" : "authorization_code",
+    #         "access_token" : "refresh_token",
+    #     }
+
+    #     response = httpx.post(STRAVA_WEB_OAUTH_TOKEN_URL, json=payload)
+
+    #     return response.json()
