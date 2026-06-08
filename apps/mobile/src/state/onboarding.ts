@@ -30,15 +30,17 @@ const initialDraft: OnboardingDraft = {
   targetBikeSpeed: "",
   targetRunTime: "",
   targetRunPace: "",
-  age: "",
+  age: "30",
   gender: "",
   phoneNumber: "",
   heightCm: 175,
+  heightUnit: "cm",
   weightKg: 75,
+  weightUnit: "kg",
   trainingExperience: "",
   currentWeeklyTrainingHours: 8,
   preferredTrainingDays: [],
-  restDayPreference: "",
+  restDayPreferences: [],
   availableHoursWeekday: 1,
   availableHoursWeekend: 4,
   injuryNotes: "",
@@ -51,6 +53,7 @@ type OnboardingState = {
   step: OnboardingStep;
   reset: () => void;
   setStep: (step: OnboardingStep) => void;
+  toggleRestDay: (day: string) => void;
   toggleTrainingDay: (day: string) => void;
   updateDraft: (values: Partial<OnboardingDraft>) => void;
 };
@@ -64,6 +67,30 @@ export const useOnboardingStore = create<OnboardingState>()(
       step: "welcome",
       reset: () => set({ draft: initialDraft, step: "welcome" }),
       setStep: (step) => set({ step }),
+      toggleRestDay: (day) =>
+        set((state) => {
+          const currentDays = state.draft.restDayPreferences;
+          const restDayPreferences =
+            day === "flexible"
+              ? currentDays.includes("flexible")
+                ? []
+                : ["flexible"]
+              : currentDays.includes(day)
+                ? currentDays.filter((currentDay) => currentDay !== day)
+                : [
+                    ...currentDays.filter(
+                      (currentDay) => currentDay !== "flexible",
+                    ),
+                    day,
+                  ];
+
+          return {
+            draft: {
+              ...state.draft,
+              restDayPreferences,
+            },
+          };
+        }),
       // update the list of preferred training days based on if the selected day is not already in the list
       toggleTrainingDay: (day) =>
         set((state) => ({
@@ -89,6 +116,29 @@ export const useOnboardingStore = create<OnboardingState>()(
     }),
     {
       name: "endura-onboarding-draft",
+      version: 2,
+      migrate: (persistedState) => {
+        const state = persistedState as {
+          draft?: Partial<OnboardingDraft> & {
+            restDayPreference?: string;
+          };
+          step?: OnboardingStep;
+        };
+        const legacyRestDay = state.draft?.restDayPreference;
+
+        return {
+          ...state,
+          draft: {
+            ...initialDraft,
+            ...state.draft,
+            heightUnit: state.draft?.heightUnit ?? "cm",
+            weightUnit: state.draft?.weightUnit ?? "kg",
+            restDayPreferences:
+              state.draft?.restDayPreferences ??
+              (legacyRestDay ? [legacyRestDay] : []),
+          },
+        };
+      },
       // custom JSON storage for the onboarding draft
       storage: createJSONStorage(() => AsyncStorage),
     },

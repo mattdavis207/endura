@@ -1,109 +1,163 @@
 import { useOnboardingStore } from "@/state/onboarding";
 
 import type { OnboardingScreenProps } from "./screenTypes";
-import { Field, OnboardingShell } from "./ui";
+import {
+  DurationPickerField,
+  numberOptions,
+  PacePickerField,
+  ValueUnitPickerField,
+  WheelPickerField,
+} from "./pickerFields";
+import { OnboardingShell } from "./ui";
 
-export function SwimTargetsScreen(props: OnboardingScreenProps) {
+function parseSpeed(value: string) {
+  const match = value.match(/^(\d+(?:\.\d+)?) (km\/h|mph)$/);
+
+  return {
+    unit: (match?.[2] ?? "mph") as "km/h" | "mph",
+    value: match?.[1] ?? "18.0",
+  };
+}
+
+export function SwimTargetsScreen({
+  onBack,
+  onNext,
+  progress,
+}: OnboardingScreenProps) {
   const draft = useOnboardingStore((state) => state.draft);
   const updateDraft = useOnboardingStore((state) => state.updateDraft);
 
   return (
     <OnboardingShell
-      {...props}
       eyebrow="Swim targets"
-      onContinue={props.onNext}
-      onSkip={props.onNext}
+      onBack={onBack}
+      onContinue={onNext}
+      onSkip={onNext}
+      progress={progress}
       subtitle="Optional targets give the coach a benchmark for pacing and progress."
       title="What would a strong swim look like?"
     >
-      <Field
-        keyboardType="numbers-and-punctuation"
+      <DurationPickerField
+        fallback="01:15:00"
         label="Target swim time"
-        onChangeText={(targetSwimTime) => updateDraft({ targetSwimTime })}
+        maxHours={5}
+        onChange={(targetSwimTime) => updateDraft({ targetSwimTime })}
         optional
-        placeholder="01:10:00"
         value={draft.targetSwimTime}
       />
-      <Field
-        keyboardType="numbers-and-punctuation"
-        label="Target pace per 100m"
-        onChangeText={(targetSwimPace) => updateDraft({ targetSwimPace })}
+      <PacePickerField
+        fallback="02:00 /100m"
+        label="Target swim pace"
+        onChange={(targetSwimPace) => updateDraft({ targetSwimPace })}
         optional
-        placeholder="1:45"
+        units={["100m", "100yd"]}
         value={draft.targetSwimPace}
       />
     </OnboardingShell>
   );
 }
 
-export function BikeTargetsScreen(props: OnboardingScreenProps) {
+export function BikeTargetsScreen({
+  onBack,
+  onNext,
+  progress,
+}: OnboardingScreenProps) {
   const draft = useOnboardingStore((state) => state.draft);
   const updateDraft = useOnboardingStore((state) => state.updateDraft);
+  const speed = parseSpeed(draft.targetBikeSpeed);
+  const speedOptions =
+    speed.unit === "mph"
+      ? numberOptions(5, 45, 0.5, 1)
+      : numberOptions(8, 72, 0.5, 1);
 
   return (
     <OnboardingShell
-      {...props}
       eyebrow="Bike targets"
-      onContinue={props.onNext}
-      onSkip={props.onNext}
+      onBack={onBack}
+      onContinue={onNext}
+      onSkip={onNext}
+      progress={progress}
       subtitle="Use whichever metric you train with. Every field is optional."
       title="Set your bike benchmarks"
     >
-      <Field
-        keyboardType="numbers-and-punctuation"
+      <DurationPickerField
+        fallback="06:00:00"
         label="Target bike time"
-        onChangeText={(targetBikeTime) => updateDraft({ targetBikeTime })}
+        maxHours={24}
+        onChange={(targetBikeTime) => updateDraft({ targetBikeTime })}
         optional
-        placeholder="05:30:00"
         value={draft.targetBikeTime}
       />
-      <Field
-        keyboardType="number-pad"
+      <WheelPickerField
         label="Target average power"
-        onChangeText={(targetBikePower) => updateDraft({ targetBikePower })}
+        onChange={(targetBikePower) => updateDraft({ targetBikePower })}
         optional
-        placeholder="190 watts"
-        value={draft.targetBikePower}
+        options={numberOptions(50, 600, 5).map((option) => ({
+          label: `${option.label} watts`,
+          value: option.value,
+        }))}
+        value={draft.targetBikePower || "180"}
       />
-      <Field
-        keyboardType="decimal-pad"
+      <ValueUnitPickerField
         label="Target average speed"
-        onChangeText={(targetBikeSpeed) => updateDraft({ targetBikeSpeed })}
+        onUnitChange={(unit) => {
+          const converted =
+            unit === "km/h"
+              ? Math.min(72, Number(speed.value) * 1.609344)
+              : Math.max(5, Number(speed.value) / 1.609344);
+          const rounded = Math.round(converted * 2) / 2;
+          updateDraft({
+            targetBikeSpeed: `${rounded.toFixed(1)} ${unit}`,
+          });
+        }}
+        onValueChange={(value) =>
+          updateDraft({ targetBikeSpeed: `${value} ${speed.unit}` })
+        }
         optional
-        placeholder="32 km/h"
-        value={draft.targetBikeSpeed}
+        unit={speed.unit}
+        unitOptions={[
+          { label: "km/h", value: "km/h" },
+          { label: "mph", value: "mph" },
+        ]}
+        value={speed.value}
+        valueOptions={speedOptions}
       />
     </OnboardingShell>
   );
 }
 
-export function RunTargetsScreen(props: OnboardingScreenProps) {
+export function RunTargetsScreen({
+  onBack,
+  onNext,
+  progress,
+}: OnboardingScreenProps) {
   const draft = useOnboardingStore((state) => state.draft);
   const updateDraft = useOnboardingStore((state) => state.updateDraft);
 
   return (
     <OnboardingShell
-      {...props}
       eyebrow="Run targets"
-      onContinue={props.onNext}
-      onSkip={props.onNext}
+      onBack={onBack}
+      onContinue={onNext}
+      onSkip={onNext}
+      progress={progress}
       subtitle="These targets can be adjusted as your fitness and race plan develop."
       title="What pace are you building toward?"
     >
-      <Field
-        keyboardType="numbers-and-punctuation"
+      <DurationPickerField
+        fallback="04:30:00"
         label="Target run time"
-        onChangeText={(targetRunTime) => updateDraft({ targetRunTime })}
+        maxHours={24}
+        onChange={(targetRunTime) => updateDraft({ targetRunTime })}
         optional
-        placeholder="04:15:00"
         value={draft.targetRunTime}
       />
-      <Field
-        keyboardType="numbers-and-punctuation"
+      <PacePickerField
+        fallback={`${draft.distanceUnit === "km" ? "06:00 /km" : "10:00 /mi"}`}
         label="Target pace"
-        onChangeText={(targetRunPace) => updateDraft({ targetRunPace })}
+        onChange={(targetRunPace) => updateDraft({ targetRunPace })}
         optional
-        placeholder="6:02 /km"
+        units={["km", "mi"]}
         value={draft.targetRunPace}
       />
     </OnboardingShell>

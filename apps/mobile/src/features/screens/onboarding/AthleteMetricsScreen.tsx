@@ -1,11 +1,9 @@
 import { useOnboardingStore } from "@/state/onboarding";
 
-import type { TrainingExperience } from "./types";
+import type { HeightUnit, TrainingExperience, WeightUnit } from "./types";
 import type { OnboardingScreenProps } from "./screenTypes";
-import { ChoiceList, NumberWheel, OnboardingShell } from "./ui";
-
-const heights = Array.from({ length: 81 }, (_, index) => index + 140);
-const weights = Array.from({ length: 141 }, (_, index) => index + 40);
+import { numberOptions, ValueUnitPickerField } from "./pickerFields";
+import { ChoiceList, OnboardingShell } from "./ui";
 
 const experienceOptions: {
   label: string;
@@ -24,6 +22,14 @@ export function AthleteMetricsScreen({
 }: OnboardingScreenProps) {
   const draft = useOnboardingStore((state) => state.draft);
   const updateDraft = useOnboardingStore((state) => state.updateDraft);
+  const heightValue =
+    draft.heightUnit === "cm"
+      ? String(Math.round(draft.heightCm))
+      : String(Math.round(draft.heightCm / 2.54));
+  const weightValue =
+    draft.weightUnit === "kg"
+      ? String(Math.round(draft.weightKg))
+      : String(Math.round(draft.weightKg * 2.2046226218));
 
   return (
     <OnboardingShell
@@ -35,19 +41,51 @@ export function AthleteMetricsScreen({
       subtitle="These values are optional and can be changed from Settings."
       title="Add some training context"
     >
-      <NumberWheel
+      <ValueUnitPickerField<HeightUnit>
         label="Height"
-        onChange={(heightCm) => updateDraft({ heightCm })}
-        suffix="cm"
-        value={draft.heightCm}
-        values={heights}
+        onUnitChange={(heightUnit) => updateDraft({ heightUnit })}
+        onValueChange={(value) =>
+          updateDraft({
+            heightCm:
+              draft.heightUnit === "cm"
+                ? Number(value)
+                : Math.round(Number(value) * 2.54),
+          })
+        }
+        unit={draft.heightUnit}
+        unitOptions={[
+          { label: "cm", value: "cm" },
+          { label: "in", value: "in" },
+        ]}
+        value={heightValue}
+        valueOptions={
+          draft.heightUnit === "cm"
+            ? numberOptions(120, 230)
+            : numberOptions(48, 90)
+        }
       />
-      <NumberWheel
+      <ValueUnitPickerField<WeightUnit>
         label="Weight"
-        onChange={(weightKg) => updateDraft({ weightKg })}
-        suffix="kg"
-        value={draft.weightKg}
-        values={weights}
+        onUnitChange={(weightUnit) => updateDraft({ weightUnit })}
+        onValueChange={(value) =>
+          updateDraft({
+            weightKg:
+              draft.weightUnit === "kg"
+                ? Number(value)
+                : Math.round(Number(value) / 2.2046226218),
+          })
+        }
+        unit={draft.weightUnit}
+        unitOptions={[
+          { label: "kg", value: "kg" },
+          { label: "lb", value: "lb" },
+        ]}
+        value={weightValue}
+        valueOptions={
+          draft.weightUnit === "kg"
+            ? numberOptions(35, 250)
+            : numberOptions(77, 550)
+        }
       />
       <ChoiceList
         onChange={(trainingExperience) => updateDraft({ trainingExperience })}

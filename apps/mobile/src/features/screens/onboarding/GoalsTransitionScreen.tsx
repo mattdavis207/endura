@@ -1,10 +1,11 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Image } from "react-native";
 
 import { Box } from "@/components/ui/box";
 import { Text } from "@/components/ui/text";
 import { useOnboardingStore } from "@/state/onboarding";
 
 import type { OnboardingScreenProps } from "./screenTypes";
+import { onboardingLogos } from "./assets";
 import { OnboardingShell } from "./ui";
 
 export function GoalsTransitionScreen({
@@ -25,9 +26,12 @@ export function GoalsTransitionScreen({
       title={`Now let’s set your goals for ${raceTitle || "race day"}.`}
     >
       <Box className="h-56 items-center justify-center rounded-lg border border-slate-700 bg-slate-900">
-        <Box className="h-20 w-20 items-center justify-center rounded-full bg-blue-500">
-          <Ionicons name="flag-outline" size={36} color="#ffffff" />
-        </Box>
+        <Image
+          accessibilityLabel="Endura"
+          resizeMode="contain"
+          source={onboardingLogos.circularLight}
+          style={{ height: 96, width: 96 }}
+        />
         <Text className="mt-5 text-center text-sm font-semibold text-slate-300">
           Outcome first. Discipline targets next.
         </Text>

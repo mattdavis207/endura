@@ -3,7 +3,8 @@ import { useOnboardingStore } from "@/state/onboarding";
 import type { DistanceUnit, RaceType } from "./types";
 import { distanceOptions, raceTypeLabels } from "./types";
 import type { OnboardingScreenProps } from "./screenTypes";
-import { ChoiceList, Field, OnboardingShell, SegmentedControl } from "./ui";
+import { DecimalPickerField } from "./pickerFields";
+import { ChoiceList, OnboardingShell, SegmentedControl } from "./ui";
 
 export function RaceDistanceScreen({
   onBack,
@@ -31,6 +32,22 @@ export function RaceDistanceScreen({
         : raceType === "cycling"
           ? Boolean(draft.customBikeDistance)
           : Boolean(draft.customSwimDistance);
+  const selectDistanceUnit = (distanceUnit: DistanceUnit) => {
+    if (distanceUnit === draft.distanceUnit) {
+      return;
+    }
+
+    const factor = distanceUnit === "km" ? 1.609344 : 1 / 1.609344;
+    const convert = (value: string) =>
+      value ? (Number(value) * factor).toFixed(1) : value;
+
+    updateDraft({
+      customBikeDistance: convert(draft.customBikeDistance),
+      customRunDistance: convert(draft.customRunDistance),
+      customSwimDistance: convert(draft.customSwimDistance),
+      distanceUnit,
+    });
+  };
 
   return (
     <OnboardingShell
@@ -45,7 +62,23 @@ export function RaceDistanceScreen({
       title="How far is the race?"
     >
       <ChoiceList
-        onChange={(raceDistanceType) => updateDraft({ raceDistanceType })}
+        onChange={(raceDistanceType) =>
+          updateDraft({
+            customBikeDistance:
+              raceDistanceType === "Custom" && !draft.customBikeDistance
+                ? "1.0"
+                : draft.customBikeDistance,
+            customRunDistance:
+              raceDistanceType === "Custom" && !draft.customRunDistance
+                ? "1.0"
+                : draft.customRunDistance,
+            customSwimDistance:
+              raceDistanceType === "Custom" && !draft.customSwimDistance
+                ? "0.1"
+                : draft.customSwimDistance,
+            raceDistanceType,
+          })
+        }
         options={options}
         value={draft.raceDistanceType}
       />
@@ -53,7 +86,7 @@ export function RaceDistanceScreen({
       {isCustom ? (
         <>
           <SegmentedControl<DistanceUnit>
-            onChange={(distanceUnit) => updateDraft({ distanceUnit })}
+            onChange={selectDistanceUnit}
             options={[
               { label: "Kilometers", value: "km" },
               { label: "Miles", value: "mi" },
@@ -62,65 +95,65 @@ export function RaceDistanceScreen({
           />
           {raceType === "triathlon" || raceType === "custom" ? (
             <>
-              <Field
-                keyboardType="decimal-pad"
-                label={`Swim distance (${draft.distanceUnit})`}
-                onChangeText={(customSwimDistance) =>
+              <DecimalPickerField
+                label="Swim distance"
+                max={draft.distanceUnit === "km" ? 50 : 31}
+                onChange={(customSwimDistance) =>
                   updateDraft({ customSwimDistance })
                 }
-                placeholder="3.8"
+                unit={draft.distanceUnit}
                 value={draft.customSwimDistance}
               />
-              <Field
-                keyboardType="decimal-pad"
-                label={`Bike distance (${draft.distanceUnit})`}
-                onChangeText={(customBikeDistance) =>
+              <DecimalPickerField
+                label="Bike distance"
+                max={draft.distanceUnit === "km" ? 1000 : 620}
+                onChange={(customBikeDistance) =>
                   updateDraft({ customBikeDistance })
                 }
-                placeholder="180"
+                unit={draft.distanceUnit}
                 value={draft.customBikeDistance}
               />
-              <Field
-                keyboardType="decimal-pad"
-                label={`Run distance (${draft.distanceUnit})`}
-                onChangeText={(customRunDistance) =>
+              <DecimalPickerField
+                label="Run distance"
+                max={draft.distanceUnit === "km" ? 500 : 310}
+                onChange={(customRunDistance) =>
                   updateDraft({ customRunDistance })
                 }
-                placeholder="42.2"
+                unit={draft.distanceUnit}
                 value={draft.customRunDistance}
               />
             </>
           ) : null}
           {raceType === "running" ? (
-            <Field
-              keyboardType="decimal-pad"
-              label={`Run distance (${draft.distanceUnit})`}
-              onChangeText={(customRunDistance) =>
+            <DecimalPickerField
+              label="Run distance"
+              max={draft.distanceUnit === "km" ? 500 : 310}
+              onChange={(customRunDistance) =>
                 updateDraft({ customRunDistance })
               }
-              placeholder="42.2"
+              unit={draft.distanceUnit}
               value={draft.customRunDistance}
             />
           ) : null}
           {raceType === "cycling" ? (
-            <Field
-              keyboardType="decimal-pad"
-              label={`Bike distance (${draft.distanceUnit})`}
-              onChangeText={(customBikeDistance) =>
+            <DecimalPickerField
+              label="Bike distance"
+              max={draft.distanceUnit === "km" ? 1000 : 620}
+              onChange={(customBikeDistance) =>
                 updateDraft({ customBikeDistance })
               }
-              placeholder="160"
+              unit={draft.distanceUnit}
               value={draft.customBikeDistance}
             />
           ) : null}
           {raceType === "swimming" ? (
-            <Field
-              keyboardType="decimal-pad"
-              label={`Swim distance (${draft.distanceUnit})`}
-              onChangeText={(customSwimDistance) =>
+            <DecimalPickerField
+              label="Swim distance"
+              max={draft.distanceUnit === "km" ? 50 : 31}
+              onChange={(customSwimDistance) =>
                 updateDraft({ customSwimDistance })
               }
-              placeholder="3.8"
+              unit={draft.distanceUnit}
               value={draft.customSwimDistance}
             />
           ) : null}

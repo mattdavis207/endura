@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Image } from "react-native";
 
 import { Box } from "@/components/ui/box";
 import { Text } from "@/components/ui/text";
@@ -7,6 +7,7 @@ import { useOnboardingStore } from "@/state/onboarding";
 
 import { goalTypeLabels } from "./types";
 import type { OnboardingScreenProps } from "./screenTypes";
+import { onboardingLogos } from "./assets";
 import { OnboardingShell } from "./ui";
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
@@ -46,9 +47,12 @@ export function SuccessScreen({
       title="Your Training HQ is ready"
     >
       <Box className="items-center rounded-lg bg-blue-500 p-6">
-        <Box className="h-16 w-16 items-center justify-center rounded-full bg-white">
-          <Ionicons name="checkmark" size={34} color="#2563eb" />
-        </Box>
+        <Image
+          accessibilityLabel="Endura"
+          resizeMode="contain"
+          source={onboardingLogos.circularLight}
+          style={{ height: 80, width: 80 }}
+        />
         <Text className="mt-4 text-center text-lg font-bold text-white">
           Race command center configured
         </Text>

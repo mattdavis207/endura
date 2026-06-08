@@ -23,18 +23,22 @@ export function TrainingNotesScreen({
     >
       <Field
         label="Current injuries"
+        maxLength={500}
         multiline
         onChangeText={(injuryNotes) => updateDraft({ injuryNotes })}
         optional
         placeholder="Left calf is returning from a mild strain"
+        showCharacterCount
         value={draft.injuryNotes}
       />
       <Field
         label="Other limitations"
+        maxLength={500}
         multiline
         onChangeText={(limitations) => updateDraft({ limitations })}
         optional
         placeholder="No pool access on Fridays"
+        showCharacterCount
         value={draft.limitations}
       />
     </OnboardingShell>

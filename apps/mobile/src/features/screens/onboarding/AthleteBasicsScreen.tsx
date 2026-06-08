@@ -1,6 +1,9 @@
+import { useEffect } from "react";
+
 import { useOnboardingStore } from "@/state/onboarding";
 
 import type { OnboardingScreenProps } from "./screenTypes";
+import { numberOptions, WheelPickerField } from "./pickerFields";
 import { ChoiceList, Field, OnboardingShell } from "./ui";
 
 const genderOptions = [
@@ -17,8 +20,15 @@ export function AthleteBasicsScreen({
 }: OnboardingScreenProps) {
   const draft = useOnboardingStore((state) => state.draft);
   const updateDraft = useOnboardingStore((state) => state.updateDraft);
+
+  useEffect(() => {
+    if (!draft.age) {
+      updateDraft({ age: "30" });
+    }
+  }, [draft.age, updateDraft]);
+
   const canContinue = Boolean(
-    draft.email.includes("@") && Number(draft.age) >= 13 && draft.gender,
+    draft.email.includes("@") && Number(draft.age || 30) >= 13 && draft.gender,
   );
 
   return (
@@ -35,17 +45,16 @@ export function AthleteBasicsScreen({
         autoCapitalize="none"
         keyboardType="email-address"
         label="Email"
+        maxLength={254}
         onChangeText={(email) => updateDraft({ email })}
         placeholder="you@example.com"
         value={draft.email}
       />
-      <Field
-        keyboardType="number-pad"
+      <WheelPickerField
         label="Age"
-        maxLength={3}
-        onChangeText={(age) => updateDraft({ age })}
-        placeholder="30"
-        value={draft.age}
+        onChange={(age) => updateDraft({ age })}
+        options={numberOptions(13, 100)}
+        value={draft.age || "30"}
       />
       <ChoiceList
         onChange={(gender) => updateDraft({ gender })}

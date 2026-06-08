@@ -1,11 +1,19 @@
 import { useOnboardingStore } from "@/state/onboarding";
 
 import type { OnboardingScreenProps } from "./screenTypes";
-import { NumberWheel, OnboardingShell } from "./ui";
+import { numberOptions, WheelPickerField } from "./pickerFields";
+import { OnboardingShell } from "./ui";
 
-const weeklyHours = Array.from({ length: 30 }, (_, index) => index + 1);
-const weekdayHours = Array.from({ length: 6 }, (_, index) => index);
-const weekendHours = Array.from({ length: 11 }, (_, index) => index);
+const weeklyHours = numberOptions(0, 80, 0.5, 1).map((option) => ({
+  label: `${option.label} hours`,
+  value: option.value,
+}));
+const dailyHours = numberOptions(0, 24, 0.5, 1).map((option) => ({
+  label: `${option.label} hours`,
+  value: option.value,
+}));
+
+const formatHours = (hours: number) => hours.toFixed(1);
 
 export function TrainingAvailabilityScreen({
   onBack,
@@ -24,32 +32,29 @@ export function TrainingAvailabilityScreen({
       subtitle="Give the planner realistic boundaries for a normal week."
       title="How much time can you train?"
     >
-      <NumberWheel
+      <WheelPickerField
         label="Current weekly training"
-        onChange={(currentWeeklyTrainingHours) =>
-          updateDraft({ currentWeeklyTrainingHours })
+        onChange={(value) =>
+          updateDraft({ currentWeeklyTrainingHours: Number(value) })
         }
-        suffix="hours"
-        value={draft.currentWeeklyTrainingHours}
-        values={weeklyHours}
+        options={weeklyHours}
+        value={formatHours(draft.currentWeeklyTrainingHours)}
       />
-      <NumberWheel
+      <WheelPickerField
         label="Available on a weekday"
-        onChange={(availableHoursWeekday) =>
-          updateDraft({ availableHoursWeekday })
+        onChange={(value) =>
+          updateDraft({ availableHoursWeekday: Number(value) })
         }
-        suffix="hours"
-        value={draft.availableHoursWeekday}
-        values={weekdayHours}
+        options={dailyHours}
+        value={formatHours(draft.availableHoursWeekday)}
       />
-      <NumberWheel
+      <WheelPickerField
         label="Available on a weekend day"
-        onChange={(availableHoursWeekend) =>
-          updateDraft({ availableHoursWeekend })
+        onChange={(value) =>
+          updateDraft({ availableHoursWeekend: Number(value) })
         }
-        suffix="hours"
-        value={draft.availableHoursWeekend}
-        values={weekendHours}
+        options={dailyHours}
+        value={formatHours(draft.availableHoursWeekend)}
       />
     </OnboardingShell>
   );

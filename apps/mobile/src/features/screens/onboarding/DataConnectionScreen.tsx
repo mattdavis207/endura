@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import { FontAwesome5 } from "@expo/vector-icons";
 import { useState } from "react";
 
 import { Box } from "@/components/ui/box";
@@ -43,8 +43,8 @@ export function DataConnectionScreen({
       title="Bring your training history"
     >
       <Box className="items-center rounded-lg border border-slate-700 bg-slate-900 p-6">
-        <Box className="h-16 w-16 items-center justify-center rounded-full bg-blue-500">
-          <Ionicons name="fitness-outline" size={30} color="#ffffff" />
+        <Box className="h-16 w-16 items-center justify-center rounded-full bg-[#FC4C02]">
+          <FontAwesome5 name="strava" size={34} color="#ffffff" />
         </Box>
         <Text className="mt-5 text-xl font-bold text-white">Strava</Text>
         <Text className="mt-2 text-center text-sm leading-5 text-slate-400">

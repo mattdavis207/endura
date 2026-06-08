@@ -30,6 +30,7 @@ export function RaceIdentityScreen({
       <Field
         autoCapitalize="words"
         label="Race name"
+        maxLength={100}
         onChangeText={(raceTitle) => updateDraft({ raceTitle })}
         placeholder="Ironman Maryland"
         value={draft.raceTitle}

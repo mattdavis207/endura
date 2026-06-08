@@ -6,6 +6,8 @@ export type RaceType =
   | "custom";
 
 export type DistanceUnit = "km" | "mi";
+export type HeightUnit = "cm" | "in";
+export type WeightUnit = "kg" | "lb";
 
 export type GoalType =
   | "finish"
@@ -65,11 +67,13 @@ export type OnboardingDraft = {
   gender: string;
   phoneNumber: string;
   heightCm: number;
+  heightUnit: HeightUnit;
   weightKg: number;
+  weightUnit: WeightUnit;
   trainingExperience: TrainingExperience | "";
   currentWeeklyTrainingHours: number;
   preferredTrainingDays: string[];
-  restDayPreference: string;
+  restDayPreferences: string[];
   availableHoursWeekday: number;
   availableHoursWeekend: number;
   injuryNotes: string;
@@ -103,7 +107,19 @@ export const distanceOptions: Record<RaceType, string[]> = {
   ],
   running: ["5K", "10K", "Half Marathon", "Marathon", "Ultra", "Custom"],
   cycling: ["20K TT", "40K TT", "Century", "Gran Fondo", "Custom"],
-  swimming: ["50m", "100m", "200m", "400m", "750m", "800m", "1500m", "1.2mi", "2.4mi", "5K Open Water", "Custom"],
+  swimming: [
+    "50m",
+    "100m",
+    "200m",
+    "400m",
+    "750m",
+    "800m",
+    "1500m",
+    "1.2mi",
+    "2.4mi",
+    "5K Open Water",
+    "Custom",
+  ],
   custom: ["Custom"],
 };
 

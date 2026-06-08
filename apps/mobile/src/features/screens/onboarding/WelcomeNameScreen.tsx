@@ -21,6 +21,7 @@ export function WelcomeNameScreen({ onNext, progress }: OnboardingScreenProps) {
         autoCapitalize="words"
         autoFocus
         label="First name"
+        maxLength={50}
         onChangeText={(value) => updateDraft({ firstName: value })}
         placeholder="Matthew"
         returnKeyType="done"

@@ -6,7 +6,7 @@ import { VStack } from "@/components/ui/vstack";
 import { useOnboardingStore } from "@/state/onboarding";
 
 import type { OnboardingScreenProps } from "./screenTypes";
-import { ChoiceList, OnboardingShell } from "./ui";
+import { MultiChoiceList, OnboardingShell } from "./ui";
 
 const days = [
   ["Mon", "Monday"],
@@ -21,7 +21,11 @@ const days = [
 const restOptions = [
   { label: "Flexible", value: "flexible" },
   { label: "Monday", value: "monday" },
+  { label: "Tuesday", value: "tuesday" },
+  { label: "Wednesday", value: "wednesday" },
+  { label: "Thursday", value: "thursday" },
   { label: "Friday", value: "friday" },
+  { label: "Saturday", value: "saturday" },
   { label: "Sunday", value: "sunday" },
 ];
 
@@ -34,7 +38,7 @@ export function TrainingDaysScreen({
   const toggleTrainingDay = useOnboardingStore(
     (state) => state.toggleTrainingDay,
   );
-  const updateDraft = useOnboardingStore((state) => state.updateDraft);
+  const toggleRestDay = useOnboardingStore((state) => state.toggleRestDay);
 
   return (
     <OnboardingShell
@@ -77,16 +81,12 @@ export function TrainingDaysScreen({
         </HStack>
       </VStack>
 
-      <VStack className="gap-3">
-        <Text className="text-sm font-bold text-slate-200">
-          Preferred rest day
-        </Text>
-        <ChoiceList
-          onChange={(restDayPreference) => updateDraft({ restDayPreference })}
-          options={restOptions}
-          value={draft.restDayPreference}
-        />
-      </VStack>
+      <MultiChoiceList
+        label="Preferred rest days (select all that apply)"
+        onChange={toggleRestDay}
+        options={restOptions}
+        values={draft.restDayPreferences}
+      />
     </OnboardingShell>
   );
 }

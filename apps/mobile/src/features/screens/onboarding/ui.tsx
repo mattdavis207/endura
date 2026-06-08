@@ -1,14 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { PropsWithChildren, ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { useState, type PropsWithChildren, type ReactNode } from "react";
+import React from "react";
 import {
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
   type TextInputProps,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -19,8 +18,6 @@ import { HStack } from "@/components/ui/hstack";
 import { Input, InputField } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
-
-const WHEEL_ITEM_HEIGHT = 48;
 
 type OnboardingShellProps = PropsWithChildren<{
   canContinue?: boolean;
@@ -136,14 +133,27 @@ export function OnboardingShell({
 type FieldProps = TextInputProps & {
   label: string;
   optional?: boolean;
+  showCharacterCount?: boolean;
 };
 
-export function Field({ label, optional, ...props }: FieldProps) {
+export function Field({
+  label,
+  optional,
+  showCharacterCount = false,
+  ...props
+}: FieldProps) {
+  const characterCount =
+    typeof props.value === "string" ? props.value.length : 0;
+
   return (
     <VStack className="gap-2">
       <HStack className="items-center justify-between">
         <Text className="text-sm font-bold text-slate-200">{label}</Text>
-        {optional ? (
+        {showCharacterCount && props.maxLength ? (
+          <Text className="text-xs font-medium text-slate-500">
+            {characterCount}/{props.maxLength}
+          </Text>
+        ) : optional ? (
           <Text className="text-xs font-medium text-slate-500">Optional</Text>
         ) : null}
       </HStack>
@@ -158,7 +168,7 @@ export function Field({ label, optional, ...props }: FieldProps) {
   );
 }
 
-type ChoiceOption<T extends string> = {
+export type ChoiceOption<T extends string> = {
   label: string;
   value: T;
 };
@@ -244,66 +254,140 @@ export function SegmentedControl<T extends string>({
   );
 }
 
-export function NumberWheel({
+export function MultiChoiceList<T extends string>({
   label,
   onChange,
-  suffix,
-  value,
+  options,
   values,
 }: {
   label: string;
-  onChange: (value: number) => void;
-  suffix: string;
-  value: number;
-  values: number[];
+  onChange: (value: T) => void;
+  options: ChoiceOption<T>[];
+  values: T[];
 }) {
-  const scrollRef = useRef<ScrollView>(null);
-  const selectedIndex = Math.max(values.indexOf(value), 0);
-
-  useEffect(() => {
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({
-        animated: false,
-        y: selectedIndex * WHEEL_ITEM_HEIGHT,
-      });
-    });
-  }, [selectedIndex]);
-
-  const handleScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const nextIndex = Math.round(
-      event.nativeEvent.contentOffset.y / WHEEL_ITEM_HEIGHT,
-    );
-    onChange(values[Math.min(Math.max(nextIndex, 0), values.length - 1)]);
-  };
-
   return (
     <VStack className="gap-3">
-      <Text className="text-center text-sm font-bold text-slate-200">
-        {label}
-      </Text>
-      <Box className="relative h-36 overflow-hidden rounded-md border border-slate-700 bg-slate-900">
-        <Box className="absolute left-4 right-4 top-12 h-12 rounded bg-slate-800" />
-        <ScrollView
-          contentContainerStyle={{ paddingVertical: WHEEL_ITEM_HEIGHT }}
-          decelerationRate="fast"
-          onMomentumScrollEnd={handleScrollEnd}
-          ref={scrollRef}
-          showsVerticalScrollIndicator={false}
-          snapToInterval={WHEEL_ITEM_HEIGHT}
-        >
-          {values.map((item) => (
-            <Box className="h-12 items-center justify-center" key={item}>
-              <Text
-                className={`text-xl font-bold ${
-                  item === value ? "text-white" : "text-slate-600"
-                }`}
-              >
-                {item} {item === value ? suffix : ""}
-              </Text>
-            </Box>
-          ))}
-        </ScrollView>
-      </Box>
+      <Text className="text-sm font-bold text-slate-200">{label}</Text>
+      {options.map((option) => {
+        const selected = values.includes(option.value);
+
+        return (
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: selected }}
+            className={`min-h-14 flex-row items-center justify-between rounded-md border px-4 ${
+              selected
+                ? "border-blue-400 bg-blue-500"
+                : "border-slate-700 bg-slate-900"
+            }`}
+            key={option.value}
+            onPress={() => onChange(option.value)}
+          >
+            <Text
+              className={`text-base font-semibold ${
+                selected ? "text-white" : "text-slate-200"
+              }`}
+            >
+              {option.label}
+            </Text>
+            <Ionicons
+              color={selected ? "#ffffff" : "#64748b"}
+              name={selected ? "checkbox" : "square-outline"}
+              size={21}
+            />
+          </Pressable>
+        );
+      })}
     </VStack>
+  );
+}
+
+export function DropdownField<T extends string>({
+  label,
+  onChange,
+  options,
+  value,
+}: {
+  label: string;
+  onChange: (value: T) => void;
+  options: ChoiceOption<T>[];
+  value: T;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedLabel =
+    options.find((option) => option.value === value)?.label || value;
+
+  return (
+    <>
+      <VStack className="gap-2">
+        <Text className="text-sm font-bold text-slate-200">{label}</Text>
+        <Pressable
+          accessibilityRole="button"
+          className="h-14 flex-row items-center justify-between rounded-md border border-slate-700 bg-slate-900 px-4"
+          onPress={() => setIsOpen(true)}
+        >
+          <Text className="flex-1 text-base font-semibold text-white">
+            {selectedLabel}
+          </Text>
+          <Ionicons name="chevron-down" size={20} color="#94a3b8" />
+        </Pressable>
+      </VStack>
+
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setIsOpen(false)}
+        presentationStyle="pageSheet"
+        visible={isOpen}
+      >
+        <SafeAreaView className="flex-1 bg-slate-950">
+          <VStack className="flex-1">
+            <HStack className="h-16 items-center justify-between border-b border-slate-800 px-5">
+              <Text className="text-lg font-bold text-white">{label}</Text>
+              <Pressable
+                accessibilityLabel="Close options"
+                className="h-10 w-10 items-center justify-center rounded-full bg-slate-900"
+                onPress={() => setIsOpen(false)}
+              >
+                <Ionicons name="close" size={22} color="#ffffff" />
+              </Pressable>
+            </HStack>
+            <ScrollView
+              contentContainerClassName="gap-2 p-5"
+              showsVerticalScrollIndicator={false}
+            >
+              {options.map((option) => {
+                const selected = option.value === value;
+
+                return (
+                  <Pressable
+                    className={`min-h-14 flex-row items-center justify-between rounded-md border px-4 ${
+                      selected
+                        ? "border-blue-400 bg-blue-500"
+                        : "border-slate-700 bg-slate-900"
+                    }`}
+                    key={option.value}
+                    onPress={() => {
+                      onChange(option.value);
+                      setIsOpen(false);
+                    }}
+                  >
+                    <Text
+                      className={`flex-1 text-base font-semibold ${
+                        selected ? "text-white" : "text-slate-200"
+                      }`}
+                    >
+                      {option.label}
+                    </Text>
+                    {selected ? (
+                      <Ionicons name="checkmark" size={20} color="#ffffff" />
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </VStack>
+        </SafeAreaView>
+      </Modal>
+    </>
   );
 }
