@@ -1,5 +1,6 @@
 """
-StravaOAuthStore class for creating 
+StravaOAuthStore class for creating oauth state + consuming state, adding strava_connections, and accessing 
+the connection.
 """
 
 
@@ -12,6 +13,7 @@ from uuid import UUID
 from supabase import Client
 
 from app.db.supabase import create_supabase_admin_client
+from apps.api.app.integrations.strava.strava_client import StravaRefreshTokenResponse
 
 
 def hash_oauth_state(state: str) -> str:
@@ -89,3 +91,43 @@ class StravaOAuthStore:
             },
             on_conflict="user_id",
         ).execute()
+
+    def load_strava_connection(self, user_id: UUID):
+        response = (
+            self._client_factory()
+            .table("strava_connections")
+            .select("*")
+            .eq("user_id", str(user_id))
+            .execute()
+            .single()
+        )
+        
+        if not response:
+            return None
+
+        return response
+    
+    def save_refreshed_tokens(self, user_id: UUID, refreshed: StravaRefreshTokenResponse):
+        now = datetime.now(timezone.utc)
+
+        expires_at = datetime.fromtimestamp(
+            refreshed.expires_at,
+            timezone.utc
+        )
+
+        response = (
+            self._client_factory()
+            .table("strava_connections")
+            .update({
+                "access_token": refreshed.access_token,
+                "refresh_token": refreshed.refresh_token,
+                "token_type": refreshed.token_type,
+                "expires_at": expires_at,
+                "updated_at": now.isoformat(),
+            })
+            .eq("user_id", str(user_id))
+            .is_("revoked_at", "null")
+            .execute()
+        )
+
+        return response 

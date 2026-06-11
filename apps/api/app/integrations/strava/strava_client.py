@@ -1,9 +1,13 @@
-from typing import Any, cast
+from typing import Any, cast, Literal
 from urllib.parse import urlencode
+from datetime import datetime, timezone
+from pydantic import BaseModel
 
 import httpx
 
 from app.core.config import get_settings
+from app.services.strava_oauth import StravaOAuthStore
+from app.schemas.schemas import StravaRefreshTokenResponse
 
 settings = get_settings()
 
@@ -11,7 +15,7 @@ STRAVA_APP_AUTHORIZATION_URL = "strava://oauth/mobile/authorize"
 STRAVA_WEB_AUTHORIZATION_URL = "https://www.strava.com/oauth/mobile/authorize"
 STRAVA_WEB_OAUTH_TOKEN_URL = "https://www.strava.com/oauth/token"
 
-
+strava_oauth_store = StravaOAuthStore()
 
 class StravaClient:
     def __init__(self) -> None:
@@ -66,15 +70,32 @@ class StravaClient:
         return cast(dict[str, Any], response.json())
     
 
-    
+
     async def refresh_access_token(self, refresh_token):
         payload = {
             "client_id" : self.client_id,
             "client_secret" : self.client_secret,
-            "grant_type" : "authorization_code",
-            "access_token" : "refresh_token",
+            "grant_type" : "refresh_token",
+            "refresh_token" : refresh_token,
         }
 
         response = httpx.post(STRAVA_WEB_OAUTH_TOKEN_URL, json=payload)
 
-        return response.json()
+        response.raise_for_status()
+
+        return StravaRefreshTokenResponse.model_validate(response.json())
+
+    async def get_valid_access_token(self, user_id):
+        now = datetime.now(timezone.utc)
+        connection = strava_oauth_store.load_strava_connection(user_id)
+
+        if connection.expires_at <= now:
+            refreshed = await self.refresh_access_token(
+                connection.refresh_token
+            )
+            # save new access token
+            strava_oauth_store.save_refreshed_tokens(user_id, refreshed)
+
+            return refreshed.access_token
+
+        return connection.access_token
