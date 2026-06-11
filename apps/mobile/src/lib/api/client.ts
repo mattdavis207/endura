@@ -1,38 +1,80 @@
+import { supabase } from "@/lib/supabase/client";
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
-export async function apiGet<T>(path: string): Promise<T> {
-  if (!API_URL) {
-    throw new Error("EXPO_PUBLIC_API_URL is not configured");
+type ApiRequestOptions = {
+  authenticated?: boolean;
+  headers?: Record<string, string>;
+};
+
+
+// ApiRequest wrapper function for authenticating 
+async function apiRequest<TResponse>(
+  path: string,
+  init: RequestInit = {},
+  options: ApiRequestOptions = {},
+): Promise<TResponse> {
+  const authenticated = options.authenticated ?? true;
+
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    ...options.headers,
+  };
+
+  if (authenticated) {
+    headers.Authorization = `Bearer ${await getAccessToken()}`;
   }
 
   const response = await fetch(`${API_URL}${path}`, {
+    ...init,
     headers: {
-      Accept: "application/json",
+      ...headers,
+      ...init.headers,
     },
   });
 
   if (!response.ok) {
-    throw new Error(`API request failed with status ${response.status}`);
+    const body = await response.text();
+    throw new Error(`API request failed (${response.status}): ${body}`);
   }
 
-  return response.json() as Promise<T>;
+  return response.json() as Promise<TResponse>;
 }
 
-export async function apiPost<T>(path: string, body: any): Promise<T> {
-  if (!API_URL) {
-    throw new Error("EXPO_PUBLIC_API_URL is not configured");
+async function getAccessToken(): Promise<string> {
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession();
+
+  if (error) {
+    throw error;
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    headers: {
-      Accept: "application/json",
-    },
+  if (!session) {
+    throw new Error("No authenticated Supabase session");
+  }
+
+  return session.access_token;
+}
+
+export async function apiGet<T>(
+  path: string,
+  options: { authenticated?: boolean } = {},
+): Promise<T> {
+  return apiRequest(path, {method: "GET"}, options);
+}
+
+export async function apiPost<T>(path: string, body: any, options?: ApiRequestOptions): Promise<T> {
+  return apiRequest(
+    path, 
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      }, 
     body: JSON.stringify(body)
-  });
-
-  if (!response.ok) {
-    throw new Error(`API request failed with status ${response.status}`);
-  }
-
-  return response.json() as Promise<T>;
+    }, 
+    options
+  )
 }

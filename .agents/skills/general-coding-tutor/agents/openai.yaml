@@ -1,0 +1,4 @@
+interface:
+  display_name: "General Coding Tutor"
+  short_description: "Learn by building code yourself"
+  default_prompt: "Use $general-coding-tutor to guide me through this coding task without editing files unless I explicitly ask."

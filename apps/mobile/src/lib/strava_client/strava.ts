@@ -1,3 +1,7 @@
+/*
+Frontend API wrapper for IOS and Android specific REST GET calls to Strava Authorize Endpoint
+*/
+
 import * as Linking from "expo-linking";
 import { Platform } from "react-native";
 import * as WebBrowser from "expo-web-browser";
@@ -19,9 +23,16 @@ export async function startStravaAuthorization(
   const query = new URLSearchParams({
     approval_prompt: approvalPrompt,
   });
+
+  console.log("1: Starting Strava authorization");
+
   const authorization = await apiGet<StravaAuthorizationResponse>(
-    `/integrations/strava/authorize?${query.toString()}`,
+    `/integrations/strava/authorize?${query.toString()}`
   );
+
+  console.log("2: Authorization response received", authorization);
+
+  console.log("3: Platform", Platform.OS);
 
   if (Platform.OS === "ios") {
     const canOpenStrava = await Linking.canOpenURL(

@@ -1,7 +1,9 @@
+from typing import Any, cast
 from urllib.parse import urlencode
-from app.core.config import get_settings
 
 import httpx
+
+from app.core.config import get_settings
 
 settings = get_settings()
 
@@ -46,27 +48,33 @@ class StravaClient:
             authorization_url=STRAVA_APP_AUTHORIZATION_URL,
         )
     
-    async def exchange_authorization_code(self, authorization_code: str):
+    async def exchange_authorization_code(
+        self,
+        authorization_code: str,
+    ) -> dict[str, Any]:
+        payload = {
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "code": authorization_code,
+            "grant_type": "authorization_code",
+        }
 
+        async with httpx.AsyncClient() as client:
+            response = await client.post(STRAVA_WEB_OAUTH_TOKEN_URL, json=payload)
+
+        response.raise_for_status()
+        return cast(dict[str, Any], response.json())
+    
+
+    
+    async def refresh_access_token(self, refresh_token):
         payload = {
             "client_id" : self.client_id,
             "client_secret" : self.client_secret,
-            "code" : authorization_code,
             "grant_type" : "authorization_code",
+            "access_token" : "refresh_token",
         }
-        
+
         response = httpx.post(STRAVA_WEB_OAUTH_TOKEN_URL, json=payload)
 
         return response.json()
-    
-    # async def refresh_access_token(self, refresh_token):
-    #     payload = {
-    #         "client_id" : self.client_id,
-    #         "client_secret" : self.client_secret,
-    #         "grant_type" : "authorization_code",
-    #         "access_token" : "refresh_token",
-    #     }
-
-    #     response = httpx.post(STRAVA_WEB_OAUTH_TOKEN_URL, json=payload)
-
-    #     return response.json()

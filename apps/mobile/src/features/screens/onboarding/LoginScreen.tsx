@@ -13,13 +13,44 @@ import { Button, ButtonText } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
+import { create_supabase_client } from "@/lib/supabase/client";
 
 import { Field } from "./ui";
+
+const supabase = create_supabase_client();
 
 export function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [signInError, setSignInError] = useState<string>();
+
+  const SignInHandler = async () => {
+    setSignInError(undefined);
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
+    if (error) {
+      setSignInError(error.message);
+      return;
+    }
+
+    // check user profile for onboarding completion
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("onboarding_completed_at")
+      .eq("id", data.user?.id)
+      .single();
+
+    if (profile?.onboarding_completed_at) {
+      router.replace("/training");
+    } else {
+      router.replace("/onboarding");
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-slate-950">
@@ -68,6 +99,12 @@ export function LoginScreen() {
                 secureTextEntry
                 value={password}
               />
+
+              {signInError ? (
+                <Text className="text-sm font-semibold text-red-400">
+                  {signInError}
+                </Text>
+              ) : null}
             </VStack>
           </VStack>
 
@@ -77,7 +114,7 @@ export function LoginScreen() {
                 email && password ? "bg-blue-500" : "bg-slate-800"
               }`}
               disabled={!email || !password}
-              onPress={() => router.replace("/training")}
+              onPress={SignInHandler}
             >
               <ButtonText className="text-base font-bold text-white">
                 Login

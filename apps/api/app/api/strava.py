@@ -1,20 +1,28 @@
 import secrets
-from typing import Literal, Any
-from fastapi.responses import RedirectResponse, Response
-from pydantic import Json, ValidationError, BaseModel
-from pprint import pprint
+from datetime import datetime, timedelta, timezone
+from typing import Annotated, Literal
+from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import RedirectResponse, Response
+from postgrest.exceptions import APIError
+from pydantic import BaseModel, ValidationError
+from starlette.concurrency import run_in_threadpool
+from supabase_auth import User
+
+from app.core.auth import get_current_user
+from app.db.supabase import SupabaseConfigurationError
 from app.integrations.strava.strava_client import StravaClient
+from app.services.strava_oauth import StravaOAuthStore
 
 router = APIRouter(prefix="/integrations/strava", tags=["strava"])
 
 REQUIRED_SCOPES = {"read", "activity:read_all"}
 
-# Local-development state storage. Replace this with persistent, user-linked
-# state before running multiple API workers or deploying the OAuth flow.
-pending_oauth_states: set[str] = set()
 strava_client = StravaClient()
+strava_oauth_store = StravaOAuthStore()
+
 
 class StravaTokenResponseRefresh(BaseModel):
     access_token: str
@@ -22,13 +30,18 @@ class StravaTokenResponseRefresh(BaseModel):
     expires_in: int
     refresh_token: str
 
+
+class StravaAthlete(BaseModel):
+    id: int
+
+
 class StravaTokenResponseAuth(BaseModel):
     token_type: str
     expires_at: int
     expires_in: int
     refresh_token: str
     access_token: str
-    athlete: Json[Any]
+    athlete: StravaAthlete
 
 
 @router.get("/callback")
@@ -38,15 +51,20 @@ async def strava_callback(
     state: str | None = None,
     error: str | None = None,
 ) -> Response:
-    
-    # validate state
     if not state:
         raise HTTPException(status_code=400, detail="Missing OAuth state")
 
-    if state not in pending_oauth_states:
-        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
+    
+    try:
+        # consume the state in the callback from the authorization url
+        user_id = await run_in_threadpool(strava_oauth_store.consume_state, state)
+    except SupabaseConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except APIError as exc:
+        raise HTTPException(status_code=502, detail="Could not validate OAuth state") from exc
 
-    pending_oauth_states.remove(state)
+    if user_id is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
 
     if error == "access_denied":
         return RedirectResponse(
@@ -62,34 +80,43 @@ async def strava_callback(
             "endura://strava-connected?status=missing_permissions",
             status_code=302,
         )
-    
-    # token exchange using authorization code
-    token_response = await strava_client.exchange_authorization_code(code)
 
-    pprint(token_response)
-    # validate token response
-    # try:
-    #     StravaTokenResponseAuth.model_validate_json(token_response.json())
-        
-    # except ValidationError as err:
-    #     return RedirectResponse(
-    #         "endura://strava-connected?status="
-    #     )
+    try:
+        token_payload = await strava_client.exchange_authorization_code(code)
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail="Strava token exchange failed") from exc
 
+    try:
+        token_response = StravaTokenResponseAuth.model_validate(token_payload)
+    except ValidationError as exc:
+        raise HTTPException(status_code=502, detail="Invalid Strava token response") from exc
 
+    try:
+        # offloads the db inserts to background thread awaiting the result in the async endpoint
+        await run_in_threadpool(
+            strava_oauth_store.save_connection,
+            user_id=user_id,
+            strava_athlete_id=token_response.athlete.id,
+            access_token=token_response.access_token,
+            refresh_token=token_response.refresh_token,
+            token_type=token_response.token_type,
+            expires_at=datetime.fromtimestamp(token_response.expires_at, timezone.utc),
+            granted_scopes=parse_scopes(scope),
+        )
+    except SupabaseConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except APIError as exc:
+        raise HTTPException(status_code=502, detail="Could not save Strava connection") from exc
 
-
-
-    # # redirect to success page
-    # return RedirectResponse(
-    #     "endura://strava-connected?status=success",
-    #     status_code=302,
-    # )
-
+    return RedirectResponse(
+        "endura://strava-connected?status=success",
+        status_code=302,
+    )
 
 # helper function
 def parse_scopes(scope: str) -> set[str]:
     return set(scope.replace(",", " ").split())
+
 
 # helper function to check required scopes in response
 def has_required_scopes(scope: str) -> bool:
@@ -100,10 +127,28 @@ def has_required_scopes(scope: str) -> bool:
 # authorize endpoint (opens strava OAuth)
 @router.get("/authorize")
 async def authorize_with_strava(
-    approval_prompt: Literal["auto", "force"] = Query(default="auto"),
+    current_user: Annotated[User, Depends(get_current_user)],
+    approval_prompt: Annotated[
+        Literal["auto", "force"],
+        Query(),
+    ] = "auto",
 ) -> dict[str, str]:
     state = secrets.token_urlsafe(32)
-    pending_oauth_states.add(state)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+
+
+    # create the state before opening the authorization url
+    try:
+        await run_in_threadpool(
+            strava_oauth_store.create_state,
+            state=state,
+            user_id=UUID(current_user.id),
+            expires_at=expires_at,
+        )
+    except SupabaseConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except APIError as exc:
+        raise HTTPException(status_code=502, detail="Could not create OAuth state") from exc
 
     return {
         "authorization_url": strava_client.build_authorization_url(

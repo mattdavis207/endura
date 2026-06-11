@@ -22,12 +22,14 @@ export function DataConnectionScreen({
     setIsConnecting(true);
     setConnectionError(undefined);
 
+    // start authorization 
     try {
       await startStravaAuthorization("auto");
-    } catch {
+    } catch (error){
       setConnectionError(
         "Endura could not open Strava. Confirm FastAPI is running and try again.",
       );
+      console.error("Strava connection failed:", error);
       setIsConnecting(false);
     }
   };
