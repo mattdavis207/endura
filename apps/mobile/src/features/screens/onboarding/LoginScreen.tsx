@@ -16,6 +16,7 @@ import { VStack } from "@/components/ui/vstack";
 import { create_supabase_client } from "@/lib/supabase/client";
 
 import { Field } from "./ui";
+import { useOnboardingStore } from "@/state/onboarding";
 
 const supabase = create_supabase_client();
 

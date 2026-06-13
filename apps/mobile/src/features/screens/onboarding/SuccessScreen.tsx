@@ -1,14 +1,17 @@
 import { Image } from "react-native";
+import { useState } from "react";
 
 import { Box } from "@/components/ui/box";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { useOnboardingStore } from "@/state/onboarding";
+import { useRouter } from "expo-router";
 
 import { goalTypeLabels } from "./types";
 import type { OnboardingScreenProps } from "./screenTypes";
 import { onboardingLogos } from "./assets";
 import { OnboardingShell } from "./ui";
+import { apiPost } from "@/lib/api/client";
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
@@ -26,6 +29,12 @@ export function SuccessScreen({
   onNext,
   progress,
 }: OnboardingScreenProps) {
+  const [isOnboarding, setIsOnboarding] = useState(false);
+  const [error, setError] = useState<string>();
+  const reset = useOnboardingStore((state) => state.reset)
+
+  const router = useRouter();
+
   const draft = useOnboardingStore((state) => state.draft);
   const goal =
     draft.primaryGoalType === "time"
@@ -36,12 +45,33 @@ export function SuccessScreen({
           ? goalTypeLabels[draft.primaryGoalType]
           : "Build toward race day";
 
+  const onboardingHandler = async () => {
+    setIsOnboarding(true)
+    setError(undefined)
+    
+    try {
+      const {
+        email: _email,
+        stravaConnected: _stravaConnected,
+        ...submission
+      } = draft;
+
+      await apiPost("/onboarding/complete", submission);
+      reset();
+      router.replace("/training");
+    } catch (error: any){
+      console.error("Could not onboard the user", error.message)
+    } finally {
+      setIsOnboarding(false)
+    }
+  }
+
   return (
     <OnboardingShell
       continueLabel="Enter Training HQ"
       eyebrow="Setup complete"
       onBack={onBack}
-      onContinue={onNext}
+      onContinue={onboardingHandler}
       progress={progress}
       subtitle={`Your starting profile is ready, ${draft.firstName || "athlete"}.`}
       title="Your Training HQ is ready"

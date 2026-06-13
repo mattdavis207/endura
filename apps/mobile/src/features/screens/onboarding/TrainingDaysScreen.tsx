@@ -9,13 +9,13 @@ import type { OnboardingScreenProps } from "./screenTypes";
 import { MultiChoiceList, OnboardingShell } from "./ui";
 
 const days = [
-  ["Mon", "Monday"],
-  ["Tue", "Tuesday"],
-  ["Wed", "Wednesday"],
-  ["Thu", "Thursday"],
-  ["Fri", "Friday"],
-  ["Sat", "Saturday"],
-  ["Sun", "Sunday"],
+  ["Mon", "monday"],
+  ["Tue", "tuesday"],
+  ["Wed", "wednesday"],
+  ["Thu", "thursday"],
+  ["Fri", "friday"],
+  ["Sat", "saturday"],
+  ["Sun", "sunday"],
 ] as const;
 
 const restOptions = [

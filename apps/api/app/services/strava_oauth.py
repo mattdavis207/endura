@@ -13,7 +13,7 @@ from uuid import UUID
 from supabase import Client
 
 from app.db.supabase import create_supabase_admin_client
-from apps.api.app.integrations.strava.strava_client import StravaRefreshTokenResponse
+from app.schemas.schemas import StravaRefreshTokenResponse
 
 
 def hash_oauth_state(state: str) -> str:
