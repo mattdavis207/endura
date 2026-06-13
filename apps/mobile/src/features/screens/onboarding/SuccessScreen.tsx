@@ -31,7 +31,7 @@ export function SuccessScreen({
 }: OnboardingScreenProps) {
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [error, setError] = useState<string>();
-  const reset = useOnboardingStore((state) => state.reset)
+  const reset = useOnboardingStore((state) => state.reset);
 
   const router = useRouter();
 
@@ -46,8 +46,8 @@ export function SuccessScreen({
           : "Build toward race day";
 
   const onboardingHandler = async () => {
-    setIsOnboarding(true)
-    setError(undefined)
+    setIsOnboarding(true);
+    setError(undefined);
     
     try {
       const {
@@ -59,17 +59,32 @@ export function SuccessScreen({
       await apiPost("/onboarding/complete", submission);
       reset();
       router.replace("/training");
-    } catch (error: any){
-      console.error("Could not onboard the user", error.message)
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Could not finish onboarding. Please try again.";
+
+      setError(message);
+      console.error("Could not onboard the user", message);
     } finally {
-      setIsOnboarding(false)
+      setIsOnboarding(false);
     }
-  }
+  };
 
   return (
     <OnboardingShell
+      canContinue={!isOnboarding}
       continueLabel="Enter Training HQ"
       eyebrow="Setup complete"
+      footerNote={
+        error ? (
+          <Text className="text-center text-sm font-semibold text-red-400">
+            {error}
+          </Text>
+        ) : null
+      }
+      isContinuing={isOnboarding}
       onBack={onBack}
       onContinue={onboardingHandler}
       progress={progress}

@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Box } from "@/components/ui/box";
-import { Button, ButtonText } from "@/components/ui/button";
+import { Button, ButtonSpinner, ButtonText } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
 import { Input, InputField } from "@/components/ui/input";
@@ -24,6 +24,7 @@ type OnboardingShellProps = PropsWithChildren<{
   continueLabel?: string;
   eyebrow?: string;
   footerNote?: ReactNode;
+  isContinuing?: boolean;
   onBack?: () => void;
   onContinue: () => void;
   onSkip?: () => void;
@@ -38,6 +39,7 @@ export function OnboardingShell({
   continueLabel = "Continue",
   eyebrow,
   footerNote,
+  isContinuing = false,
   onBack,
   onContinue,
   onSkip,
@@ -111,15 +113,18 @@ export function OnboardingShell({
               className={`h-14 rounded-md px-5 ${
                 canContinue ? "bg-blue-500" : "bg-slate-800"
               }`}
-              disabled={!canContinue}
+              disabled={!canContinue || isContinuing}
               onPress={onContinue}
             >
+              {isContinuing ? (
+                <ButtonSpinner color="#ffffff" className="mr-2" />
+              ) : null}
               <ButtonText
                 className={`text-base font-bold ${
                   canContinue ? "text-white" : "text-slate-500"
                 }`}
               >
-                {continueLabel}
+                {isContinuing ? "Finishing setup..." : continueLabel}
               </ButtonText>
             </Button>
             {footerNote}
