@@ -1,6 +1,6 @@
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal, cast
 from uuid import UUID
 
 import httpx
@@ -14,7 +14,9 @@ from supabase_auth import User
 from app.core.auth import get_current_user
 from app.db.supabase import SupabaseConfigurationError
 from app.integrations.strava.strava_client import StravaClient
+from app.schemas.schemas import Workout
 from app.services.strava_oauth import StravaOAuthStore
+from app.services.workout_service import WorkoutService
 
 router = APIRouter(prefix="/integrations/strava", tags=["strava"])
 
@@ -22,6 +24,7 @@ REQUIRED_SCOPES = {"read", "activity:read_all"}
 
 strava_client = StravaClient()
 strava_oauth_store = StravaOAuthStore()
+workout_service = WorkoutService()
 
 
 class StravaTokenResponseRefresh(BaseModel):
@@ -44,6 +47,43 @@ class StravaTokenResponseAuth(BaseModel):
     athlete: StravaAthlete
 
 
+def add_heart_rate_streams_to_workout(
+    workout: Workout,
+    streams: dict[str, dict[str, Any]],
+) -> Workout:
+    time_stream = streams.get("time")
+    heart_rate_stream = streams.get("heartrate")
+
+    if not time_stream or not heart_rate_stream:
+        return workout
+
+    time_data = time_stream.get("data")
+    heart_rate_data = heart_rate_stream.get("data")
+
+    if not isinstance(time_data, list) or not isinstance(heart_rate_data, list):
+        return workout
+
+    if not all(isinstance(value, int) for value in time_data):
+        return workout
+
+    if not all(isinstance(value, int) for value in heart_rate_data):
+        return workout
+
+    original_size = heart_rate_stream.get("original_size")
+    resolution = heart_rate_stream.get("resolution")
+    series_type = heart_rate_stream.get("series_type")
+
+    workout.heart_rate_time_seconds = cast(list[int], time_data)
+    workout.heart_rate_bpm = cast(list[int], heart_rate_data)
+    workout.heart_rate_stream_original_size = (
+        original_size if isinstance(original_size, int) else None
+    )
+    workout.heart_rate_stream_resolution = resolution if isinstance(resolution, str) else None
+    workout.heart_rate_stream_series_type = series_type if isinstance(series_type, str) else None
+
+    return workout
+
+
 @router.get("/callback")
 async def strava_callback(
     code: str | None = None,
@@ -54,7 +94,6 @@ async def strava_callback(
     if not state:
         raise HTTPException(status_code=400, detail="Missing OAuth state")
 
-    
     try:
         # consume the state in the callback from the authorization url
         user_id = await run_in_threadpool(strava_oauth_store.consume_state, state)
@@ -136,7 +175,6 @@ async def authorize_with_strava(
     state = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
 
-
     # create the state before opening the authorization url
     try:
         await run_in_threadpool(
@@ -160,3 +198,31 @@ async def authorize_with_strava(
             approval_prompt=approval_prompt,
         ),
     }
+
+# get 10 most recent strava workout for a user
+@router.post("/sync")
+async def sync_strava_workouts(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> list[dict[str, Any]]:
+    # get access token
+    access_token = await strava_client.get_valid_access_token(UUID(current_user.id))
+
+    activity_payloads = await strava_client.get_activities(access_token, per_page=10)
+    # type validation
+    workouts = [Workout.model_validate(activity) for activity in activity_payloads]
+
+    # add in heart rate streams
+    for workout in workouts:
+        if workout.has_heartrate and workout.id is not None:
+            streams = await strava_client.get_activity_streams(
+                access_token,
+                activity_id=workout.id,
+                keys=["time", "heartrate"],
+            )
+            add_heart_rate_streams_to_workout(workout, streams)
+
+   
+    # save workouts to the db
+    workout_service.save_workouts(UUID(current_user.id), workouts=workouts)
+
+    return [workout.model_dump(mode="json") for workout in workouts]

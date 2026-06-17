@@ -13,7 +13,7 @@ from uuid import UUID
 from supabase import Client
 
 from app.db.supabase import create_supabase_admin_client
-from app.schemas.schemas import StravaRefreshTokenResponse
+from app.schemas.schemas import StravaConnection, StravaRefreshTokenResponse, Workout
 
 
 def hash_oauth_state(state: str) -> str:
@@ -98,14 +98,14 @@ class StravaOAuthStore:
             .table("strava_connections")
             .select("*")
             .eq("user_id", str(user_id))
-            .execute()
             .single()
+            .execute()
         )
         
-        if not response:
+        if not response.data:
             return None
 
-        return response
+        return StravaConnection.model_validate(response.data)
     
     def save_refreshed_tokens(self, user_id: UUID, refreshed: StravaRefreshTokenResponse):
         now = datetime.now(timezone.utc)
@@ -122,7 +122,7 @@ class StravaOAuthStore:
                 "access_token": refreshed.access_token,
                 "refresh_token": refreshed.refresh_token,
                 "token_type": refreshed.token_type,
-                "expires_at": expires_at,
+                "expires_at": expires_at.isoformat(),
                 "updated_at": now.isoformat(),
             })
             .eq("user_id", str(user_id))
@@ -131,3 +131,12 @@ class StravaOAuthStore:
         )
 
         return response 
+    
+    def save_workouts(self, user_id: UUID, workouts: list[Workout]):
+        response = (
+            self._client_factory()
+            .table("workouts")
+            .insert(workouts)
+            .execute()
+        )
+        

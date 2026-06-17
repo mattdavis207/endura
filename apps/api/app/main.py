@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.health import router as health_router
 from app.api.strava import router as strava_router
 from app.api.onboarding import router as onboarding_router
+from app.api.training_hq import router as training_hq_router
 
 from app.core.config import get_settings
 
@@ -26,6 +27,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(strava_router)
     app.include_router(onboarding_router)
+    app.include_router(training_hq_router)
     return app
 
 

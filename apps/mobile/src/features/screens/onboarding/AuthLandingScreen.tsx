@@ -8,9 +8,24 @@ import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 
 import { onboardingLogos } from "./assets";
+import { create_supabase_client } from "@/lib/supabase/client";
+
+const supabase = create_supabase_client()
 
 export function AuthLandingScreen() {
   const router = useRouter();
+
+  async function handleRedirectLogin (){
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    
+    if (session) {
+      router.replace("/training");
+    } else {
+      router.push("./login")
+    }
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-slate-950">
@@ -39,7 +54,7 @@ export function AuthLandingScreen() {
         <VStack className="gap-3">
           <Button
             className="h-14 rounded-md bg-blue-500"
-            onPress={() => router.push("./login")}
+            onPress={handleRedirectLogin}
           >
             <ButtonText className="text-base font-bold text-white">
               Login

@@ -32,10 +32,11 @@ export function LoginScreen() {
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
-    });
+    }); 
 
     if (error) {
       setSignInError(error.message);
+      console.log(error.message);
       return;
     }
 
