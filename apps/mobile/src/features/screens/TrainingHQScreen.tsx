@@ -541,7 +541,7 @@ export function TrainingHQScreen() {
 
     // first sync strava workouts
     try {
-      await apiPost("/integrations/strava/sync", {});
+      await apiPost<TrainingHQResponse>("/integrations/strava/sync", {});
     } catch (error) {
       console.error("Strava sync failed:", error);
       setSyncError("Could not refresh Strava workouts.");

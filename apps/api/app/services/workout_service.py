@@ -1,4 +1,6 @@
 from collections.abc import Callable
+from uuid import UUID
+from typing import Any, cast
 from app.schemas.schemas import Workout
 
 from supabase import Client
@@ -28,6 +30,37 @@ class WorkoutService:
             rows,
             on_conflict="source,source_workout_id",
         ).execute()
+
+    def get_recent_workouts(self, user_id: UUID) -> list[dict[str, Any]]:
+        response = (
+            self._client_factory()
+            .table("workouts")
+            .select("*")
+            .eq("user_id", str(user_id))
+            .order("started_at", desc=True)
+            .limit(10)
+            .execute()
+        )
+
+        rows = cast(list[dict[str, Any]], response.data)
+
+        return rows
+    
+    def get_workouts_for_date_range(self, user_id, start_date, end_date):
+        response = (
+            self._client_factory()
+            .table("workouts")
+            .select("*")
+            .eq("user_id", str(user_id))
+            .gte("started_at", start_date)  
+            .lte("started_at", end_date)
+            .order("started_at", desc=True)
+            .execute()
+        )
+
+        rows = cast(list[dict[str, Any]], response.data)
+        
+        return rows
 
 
     def _strava_workout_to_row(self, user_id: UUID, workout: Workout) -> dict[str, Any]:
