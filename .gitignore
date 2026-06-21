@@ -31,6 +31,10 @@ htmlcov/
 .env.*
 !.env.example
 
+# Agents
+.agents/
+.codex/
+
 # Local tooling
 .DS_Store
 *.log
