@@ -38,6 +38,11 @@ class TrainingHQService:
         workouts = self.workout_service.get_recent_workouts(user_id)
         return build_training_hq_response(profile, race_info, planned_workouts, workouts)
 
+    # Loads and formats one page of workout history before the supplied cursor.
+    def get_workouts_before(self, user_id: UUID, before: datetime) -> list[dict[str, Any]]:
+        workouts = self.workout_service.get_workouts_before(user_id, before)
+        return [format_workout(workout) for workout in workouts]
+
     # Runs the explicit Strava, summary, plan, and reconciliation refresh sequence.
     async def refresh_dashboard(self, user_id: UUID) -> dict[str, Any]:
         access_token = await self.strava_client.get_valid_access_token(user_id)

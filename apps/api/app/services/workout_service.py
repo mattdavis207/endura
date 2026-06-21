@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from datetime import datetime
 from typing import Any, cast
 from uuid import UUID
 
@@ -39,6 +40,23 @@ class WorkoutService:
             .table("workouts")
             .select("*")
             .eq("user_id", str(user_id))
+            .order("started_at", desc=True)
+            .limit(10)
+            .execute()
+        )
+
+        rows = cast(list[dict[str, Any]], response.data)
+
+        return rows
+
+    # Loads the next page of workouts strictly before the supplied timestamp.
+    def get_workouts_before(self, user_id: UUID, before: datetime) -> list[dict[str, Any]]:
+        response = (
+            self._client_factory()
+            .table("workouts")
+            .select("*")
+            .eq("user_id", str(user_id))
+            .lt("started_at", before.isoformat())
             .order("started_at", desc=True)
             .limit(10)
             .execute()

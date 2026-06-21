@@ -147,6 +147,39 @@ function groupWorkoutsByDay(workouts: TrainingHQWorkout[]): WorkoutDay[] {
   );
 }
 
+// Returns a stable identity for merging paginated workouts without duplicates.
+function getWorkoutIdentity(workout: TrainingHQWorkout): string {
+  if (workout.id) {
+    return `id:${workout.id}`;
+  }
+
+  if (workout.sourceWorkoutId) {
+    return `source:${workout.source ?? "unknown"}:${workout.sourceWorkoutId}`;
+  }
+
+  return `fallback:${workout.startedAt}:${workout.sportType}:${workout.name}`;
+}
+
+// Merges older workouts after current data while preserving within-day ordering.
+function mergeWorkouts(
+  currentWorkouts: TrainingHQWorkout[],
+  olderWorkouts: TrainingHQWorkout[],
+): TrainingHQWorkout[] {
+  const workoutsByIdentity = new Map(
+    currentWorkouts.map((workout) => [getWorkoutIdentity(workout), workout]),
+  );
+
+  olderWorkouts.forEach((workout) => {
+    const identity = getWorkoutIdentity(workout);
+
+    if (!workoutsByIdentity.has(identity)) {
+      workoutsByIdentity.set(identity, workout);
+    }
+  });
+
+  return Array.from(workoutsByIdentity.values());
+}
+
 function formatWorkoutDate(date: Date): string {
   return date.toLocaleDateString(undefined, {
     weekday: "short",
@@ -495,9 +528,14 @@ function WorkoutDayCard({
   );
 }
 
+// Coordinates Training HQ loading, workout history pagination, and screen UI.
 export function TrainingHQScreen() {
   const { width: windowWidth } = useWindowDimensions();
   const workoutScrollRef = useRef<ScrollView>(null);
+  const activeWorkoutIndexRef = useRef(0);
+  const isLoadingOlderRef = useRef(false);
+  const hasPositionedInitialWorkoutRef = useRef(false);
+  const preservedWorkoutDayKeyRef = useRef<string | undefined>(undefined);
   const [countdown, setCountdown] = useState<CountdownParts>(() =>
     getCountdownParts(null),
   );
@@ -505,6 +543,8 @@ export function TrainingHQScreen() {
   const [activeWorkoutIndex, setActiveWorkoutIndex] = useState(0);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const [hasReachedOldestWorkout, setHasReachedOldestWorkout] = useState(false);
   const [syncError, setSyncError] = useState<string>();
   const [loadError, setLoadError] = useState<string>();
 
@@ -534,6 +574,7 @@ export function TrainingHQScreen() {
     return () => clearInterval(intervalId);
   }, [raceDayTime]);
 
+  // Refreshes Strava data before loading the initial Training HQ response.
   async function loadTrainingHQ() {
     setIsLoading(true);
     setSyncError(undefined);
@@ -562,17 +603,38 @@ export function TrainingHQScreen() {
     void loadTrainingHQ();
   }, []);
 
+  // Positions initial data at the latest day and preserves the visible day after pagination.
   useEffect(() => {
-    setActiveWorkoutIndex(latestWorkoutIndex);
+    if (workoutDays.length === 0) {
+      return;
+    }
+
+    const preservedDayKey = preservedWorkoutDayKeyRef.current;
+    const preservedIndex = preservedDayKey
+      ? workoutDays.findIndex((day) => day.dateKey === preservedDayKey)
+      : -1;
+    const nextIndex =
+      preservedIndex >= 0
+        ? preservedIndex
+        : hasPositionedInitialWorkoutRef.current
+          ? Math.min(activeWorkoutIndexRef.current, latestWorkoutIndex)
+          : latestWorkoutIndex;
+
+    hasPositionedInitialWorkoutRef.current = true;
+    preservedWorkoutDayKeyRef.current = undefined;
+    activeWorkoutIndexRef.current = nextIndex;
+    setActiveWorkoutIndex(nextIndex);
     workoutScrollRef.current?.scrollTo({
-      x: latestWorkoutIndex * workoutSlideWidth,
+      x: nextIndex * workoutSlideWidth,
       animated: false,
     });
-  }, [latestWorkoutIndex, workoutDays.length, workoutSlideWidth]);
+  }, [latestWorkoutIndex, workoutDays, workoutSlideWidth]);
 
+  // Moves the carousel to a loaded workout day within the available bounds.
   function scrollToWorkoutDay(index: number) {
     const nextIndex = Math.min(Math.max(index, 0), workoutDays.length - 1);
 
+    activeWorkoutIndexRef.current = nextIndex;
     setActiveWorkoutIndex(nextIndex);
     workoutScrollRef.current?.scrollTo({
       x: nextIndex * workoutSlideWidth,
@@ -584,10 +646,73 @@ export function TrainingHQScreen() {
     scrollToWorkoutDay(activeWorkoutIndex + 1);
   }
 
-  function showOlderWorkoutDay() {
-    scrollToWorkoutDay(activeWorkoutIndex - 1);
+  // Loads the next history page when navigation reaches the oldest loaded day.
+  async function showOlderWorkoutDay() {
+    if (activeWorkoutIndex > 0) {
+      scrollToWorkoutDay(activeWorkoutIndex - 1);
+      return;
+    }
+
+    if (isLoadingOlderRef.current || hasReachedOldestWorkout) {
+      return;
+    }
+
+    const oldestDay = workoutDays[0];
+    const oldestStartedAt = oldestDay?.workouts.reduce<string | null>(
+      (oldest, workout) => {
+        if (!workout.startedAt) {
+          return oldest;
+        }
+
+        if (!oldest) {
+          return workout.startedAt;
+        }
+
+        return new Date(workout.startedAt).getTime() < new Date(oldest).getTime()
+          ? workout.startedAt
+          : oldest;
+      },
+      null,
+    );
+
+    if (!oldestDay || !oldestStartedAt) {
+      setHasReachedOldestWorkout(true);
+      return;
+    }
+
+    isLoadingOlderRef.current = true;
+    setIsLoadingOlder(true);
+    setLoadError(undefined);
+
+    try {
+      const olderWorkouts = await apiGet<TrainingHQWorkout[]>(
+        `/training-hq/workouts?before=${encodeURIComponent(oldestStartedAt)}`,
+      );
+      const currentWorkouts = trainingHQ?.recentWorkouts ?? [];
+      const mergedWorkouts = mergeWorkouts(currentWorkouts, olderWorkouts);
+
+      if (
+        olderWorkouts.length < 10 ||
+        mergedWorkouts.length === currentWorkouts.length
+      ) {
+        setHasReachedOldestWorkout(true);
+      }
+
+      if (mergedWorkouts.length > currentWorkouts.length) {
+        preservedWorkoutDayKeyRef.current = oldestDay.dateKey;
+        setTrainingHQ((current) =>
+          current ? { ...current, recentWorkouts: mergedWorkouts } : current,
+        );
+      }
+    } catch {
+      setLoadError("Could not load older workouts.");
+    } finally {
+      isLoadingOlderRef.current = false;
+      setIsLoadingOlder(false);
+    }
   }
 
+  // Synchronizes the active day after the user swipes the workout carousel.
   function handleWorkoutScrollEnd(
     event: NativeSyntheticEvent<NativeScrollEvent>,
   ) {
@@ -595,9 +720,13 @@ export function TrainingHQScreen() {
       event.nativeEvent.contentOffset.x / workoutSlideWidth,
     );
 
-    setActiveWorkoutIndex(
-      Math.min(Math.max(nextIndex, 0), workoutDays.length - 1),
+    const boundedIndex = Math.min(
+      Math.max(nextIndex, 0),
+      workoutDays.length - 1,
     );
+
+    activeWorkoutIndexRef.current = boundedIndex;
+    setActiveWorkoutIndex(boundedIndex);
   }
 
   return (
@@ -703,6 +832,7 @@ export function TrainingHQScreen() {
           </VStack>
         ) : null}
 
+        {/* Paginated workout history */}
         {workoutDays.length > 0 ? (
           <Box className="relative">
             <Box
@@ -716,9 +846,16 @@ export function TrainingHQScreen() {
                 size="sm"
                 variant="solid"
                 action="secondary"
-                onPress={showOlderWorkoutDay}
+                disabled={
+                  activeWorkoutIndex === 0 &&
+                  (isLoadingOlder || hasReachedOldestWorkout)
+                }
+                onPress={() => void showOlderWorkoutDay()}
                 className={`h-10 w-10 rounded-full bg-slate-800/90 p-0 ${
-                  activeWorkoutIndex === 0 ? "opacity-40" : "opacity-100"
+                  activeWorkoutIndex === 0 &&
+                  (isLoadingOlder || hasReachedOldestWorkout)
+                    ? "opacity-40"
+                    : "opacity-100"
                 }`}
               >
                 <Ionicons name="chevron-back" size={22} color="#ffffff" />

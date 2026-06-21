@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -33,6 +34,15 @@ def get_training_hq(
     user_id = UUID(current_user.id)
 
     return training_hq_service.get_dashboard(user_id)
+
+
+# Returns the authenticated user's workouts strictly before the pagination cursor.
+@router.get("/workouts")
+def get_previous_workouts(
+    before: datetime,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> list[dict[str, Any]]:
+    return training_hq_service.get_workouts_before(UUID(current_user.id), before)
 
 
 # Refreshes Strava and planning data before returning the updated Training HQ dashboard.
