@@ -1,21 +1,22 @@
 from collections.abc import Callable
-from uuid import UUID
 from typing import Any, cast
-from app.schemas.schemas import Workout
+from uuid import UUID
 
 from supabase import Client
 
 from app.db.supabase import create_supabase_admin_client
-
+from app.schemas.schemas import Workout
 
 
 class WorkoutService:
-    def __init__( 
+    # Stores the database client factory used for workout reads and writes.
+    def __init__(
         self,
-        client_factory: Callable[[], Client] = create_supabase_admin_client):
+        client_factory: Callable[[], Client] = create_supabase_admin_client,
+    ) -> None:
         self._client_factory = client_factory
 
-
+    # Upserts provider workouts by their stable source identifier.
     def save_workouts(self, user_id: UUID, workouts: list[Workout]) -> None:
         rows = [
             self._strava_workout_to_row(user_id, workout)
@@ -31,6 +32,7 @@ class WorkoutService:
             on_conflict="source,source_workout_id",
         ).execute()
 
+    # Loads the ten most recent persisted workouts for dashboard history and stats.
     def get_recent_workouts(self, user_id: UUID) -> list[dict[str, Any]]:
         response = (
             self._client_factory()
@@ -45,24 +47,27 @@ class WorkoutService:
         rows = cast(list[dict[str, Any]], response.data)
 
         return rows
-    
-    def get_workouts_for_date_range(self, user_id, start_date, end_date):
+
+    # Loads workouts inside a caller-provided timestamp range.
+    def get_workouts_for_date_range(
+        self, user_id: UUID, start_date: str, end_date: str
+    ) -> list[dict[str, Any]]:
         response = (
             self._client_factory()
             .table("workouts")
             .select("*")
             .eq("user_id", str(user_id))
-            .gte("started_at", start_date)  
+            .gte("started_at", start_date)
             .lte("started_at", end_date)
             .order("started_at", desc=True)
             .execute()
         )
 
         rows = cast(list[dict[str, Any]], response.data)
-        
+
         return rows
 
-
+    # Converts a validated Strava activity into the workouts table representation.
     def _strava_workout_to_row(self, user_id: UUID, workout: Workout) -> dict[str, Any]:
         return {
             "user_id": str(user_id),
